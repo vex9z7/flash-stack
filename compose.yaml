@@ -1,10 +1,10 @@
 services:
   permissions:
-    image: ${PERMISSIONS_IMAGE:-busybox:1.37.0}
+    image: ${PERMISSIONS_IMAGE:?Set PERMISSIONS_IMAGE in .env}
     user: "0:0"
     environment:
-      TARGET_UID: ${FLASH_UID:-100}
-      TARGET_GID: ${FLASH_GID:-101}
+      TARGET_UID: ${FLASH_UID:?Set FLASH_UID in .env}
+      TARGET_GID: ${FLASH_GID:?Set FLASH_GID in .env}
     restart: "no"
     network_mode: none
     read_only: true
@@ -24,14 +24,14 @@ services:
         echo "Data directory prepared for $$owner (existing files unchanged)."
     volumes:
       - type: bind
-        source: ${FLASH_DATA_PATH:-./data}
+        source: ${FLASH_DATA_PATH:?Set FLASH_DATA_PATH in .env}
         target: /data
         bind:
           create_host_path: false
 
   flash:
     image: ${FLASH_IMAGE:?Copy .env.example to .env and set FLASH_IMAGE}
-    user: "${FLASH_UID:-100}:${FLASH_GID:-101}"
+    user: "${FLASH_UID:?Set FLASH_UID in .env}:${FLASH_GID:?Set FLASH_GID in .env}"
     restart: unless-stopped
     logging:
       driver: local
@@ -45,13 +45,13 @@ services:
       FLASH_BASE_URL: ${FLASH_BASE_URL:?Set FLASH_BASE_URL in .env}
       FLASH_BIND: 0.0.0.0:8437
       FLASH_DATA_DIR: /data
-      FLASH_CLIENT_IP_HEADER: ${FLASH_CLIENT_IP_HEADER:-}
-      FLASH_PREVIOUS_BASE_URLS: ${FLASH_PREVIOUS_BASE_URLS:-}
+      FLASH_CLIENT_IP_HEADER: ${FLASH_CLIENT_IP_HEADER?Set FLASH_CLIENT_IP_HEADER in .env (may be empty)}
+      FLASH_PREVIOUS_BASE_URLS: ${FLASH_PREVIOUS_BASE_URLS?Set FLASH_PREVIOUS_BASE_URLS in .env (may be empty)}
     ports:
-      - "${FLASH_HOST_IP:-127.0.0.1}:${FLASH_HOST_PORT:-8437}:8437"
+      - "${FLASH_HOST_IP:?Set FLASH_HOST_IP in .env}:${FLASH_HOST_PORT:?Set FLASH_HOST_PORT in .env}:8437"
     volumes:
       - type: bind
-        source: ${FLASH_DATA_PATH:-./data}
+        source: ${FLASH_DATA_PATH:?Set FLASH_DATA_PATH in .env}
         target: /data
         bind:
           create_host_path: false

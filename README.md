@@ -36,9 +36,9 @@ Then open the same localhost URL on your computer.
 
 ## Configuration
 
-Edit `.env`:
+Edit `.env`. Compose has no variable fallbacks: all listed variables must be defined; optional values may be empty.
 
-| Variable | Default | Purpose |
+| Variable | Example value | Purpose |
 | --- | --- | --- |
 | `FLASH_IMAGE` | `ghcr.io/flash-cards/flash:latest` | Image tag or digest; pin a reviewed version for long-term use |
 | `PERMISSIONS_IMAGE` | `busybox:1.37.0` | Utility image for directory initialization |
