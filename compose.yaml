@@ -20,7 +20,7 @@ services:
       - |
         owner="$$TARGET_UID:$$TARGET_GID"
         chown "$$owner" /data
-        chmod u+rwx /data
+        chmod 750 /data
         echo "Data directory prepared for $$owner (existing files unchanged)."
     volumes:
       - type: bind
@@ -33,6 +33,11 @@ services:
     image: ${FLASH_IMAGE:?Copy .env.example to .env and set FLASH_IMAGE}
     user: "${FLASH_UID:-100}:${FLASH_GID:-101}"
     restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       permissions:
         condition: service_completed_successfully

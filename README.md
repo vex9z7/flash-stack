@@ -18,7 +18,7 @@ docker compose up -d
 docker compose logs --tail=100 flash
 ```
 
-The one-shot BusyBox `permissions` service sets the data directory's owner and ensures owner access. It has no network access and only the `CHOWN` and `FOWNER` capabilities. Flash starts after it succeeds, using the same non-root UID/GID. `permissions` showing `Exited (0)` is normal.
+The one-shot BusyBox `permissions` service sets the data directory's owner and mode `750`. It has no network access and only the `CHOWN` and `FOWNER` capabilities. Flash starts after it succeeds, using the same non-root UID/GID. `permissions` showing `Exited (0)` is normal.
 
 Only the directory itself is changed; existing files, subdirectories, and ACLs are not repaired. For a custom data path, create that directory first. Existing data must already be accessible to Flash. SELinux, user namespace mappings, or network filesystem restrictions may require host-side configuration.
 
@@ -50,6 +50,8 @@ Edit `.env`:
 
 Apply changes with `docker compose up -d`. A restart alone does not update environment variables. Only variables listed under `environment` in `compose.yaml` are passed to Flash.
 
+Changing UID/GID does not migrate existing file ownership. Stop Flash and migrate existing data ownership before using a new UID/GID.
+
 To rerun directory initialization explicitly, stop Flash first:
 
 ```bash
@@ -70,6 +72,8 @@ Use HTTPS or localhost for sign-in and passkeys. Set `FLASH_CLIENT_IP_HEADER` on
 Connect compatible MCP clients to `https://your-domain/mcp`. Cloud clients need a reachable HTTPS endpoint. Self-hosted data is separate from the official hosted service.
 
 ## Maintenance
+
+Flash logs use the Docker `local` driver with rotation at 10 MB per file and up to three files.
 
 ```bash
 docker compose ps                       # Status and health
