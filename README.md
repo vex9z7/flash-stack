@@ -12,26 +12,15 @@ mkdir -p data
 docker compose pull
 ```
 
-Grant the image's runtime user write access to `data`. Check its UID/GID:
-
-```bash
-docker compose run --rm --no-deps --entrypoint id flash
-```
-
-If the output shows UID `100` and GID `101`:
-
-```bash
-sudo chown 100:101 data
-sudo chmod 750 data
-```
-
-For a custom data path, create and grant access to that directory instead. SELinux hosts may also require bind-mount labeling.
-
 ```bash
 docker compose config --quiet
 docker compose up -d
 docker compose logs --tail=100 flash
 ```
+
+The one-shot BusyBox `permissions` service sets the data directory's owner and ensures owner access. It has no network access and only the `CHOWN` and `FOWNER` capabilities. Flash starts after it succeeds, using the same non-root UID/GID. `permissions` showing `Exited (0)` is normal.
+
+Only the directory itself is changed; existing files, subdirectories, and ACLs are not repaired. For a custom data path, create that directory first. Existing data must already be accessible to Flash. SELinux, user namespace mappings, or network filesystem restrictions may require host-side configuration.
 
 Open **http://localhost:8437**. On first boot, use the one-time administrator enrollment link from the logs. Keep that link private.
 
@@ -50,14 +39,24 @@ Edit `.env`:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `FLASH_IMAGE` | `ghcr.io/flash-cards/flash:latest` | Image tag or digest; pin a reviewed version for long-term use |
+| `PERMISSIONS_IMAGE` | `busybox:1.37.0` | Utility image for directory initialization |
+| `FLASH_UID` / `FLASH_GID` | `100` / `101` | Runtime ownership shared by Flash and the initializer; matches upstream defaults |
 | `FLASH_BASE_URL` | `http://localhost:8437` | Must match the browser's origin: scheme, hostname, and port |
-| `FLASH_DATA_PATH` | `./data` | Existing writable host directory, relative to `compose.yaml` or absolute |
+| `FLASH_DATA_PATH` | `./data` | Existing dedicated host directory, relative to `compose.yaml` or absolute |
 | `FLASH_HOST_IP` | `127.0.0.1` | Host binding address |
 | `FLASH_HOST_PORT` | `8437` | Host port; container port remains `8437` |
 | `FLASH_CLIENT_IP_HEADER` | Empty | Client IP header overwritten by a trusted proxy |
 | `FLASH_PREVIOUS_BASE_URLS` | Empty | Comma-separated old origins for existing MCP clients after a move |
 
 Apply changes with `docker compose up -d`. A restart alone does not update environment variables. Only variables listed under `environment` in `compose.yaml` are passed to Flash.
+
+To rerun directory initialization explicitly, stop Flash first:
+
+```bash
+docker compose stop flash
+docker compose run --rm --no-deps permissions
+docker compose up -d
+```
 
 ## HTTPS and MCP
 
@@ -105,3 +104,4 @@ Read upstream release notes before upgrading. Database migrations may require re
 
 - [Flash self-hosting guide](https://flashmemorize.com/self-host)
 - [Upstream source and releases](https://github.com/flash-cards/flash)
+- [Compose startup dependencies](https://docs.docker.com/compose/how-tos/startup-order/)

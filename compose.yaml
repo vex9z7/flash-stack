@@ -1,7 +1,41 @@
 services:
+  permissions:
+    image: ${PERMISSIONS_IMAGE:-busybox:1.37.0}
+    user: "0:0"
+    environment:
+      TARGET_UID: ${FLASH_UID:-100}
+      TARGET_GID: ${FLASH_GID:-101}
+    restart: "no"
+    network_mode: none
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        owner="$$TARGET_UID:$$TARGET_GID"
+        chown "$$owner" /data
+        chmod u+rwx /data
+        echo "Data directory prepared for $$owner (existing files unchanged)."
+    volumes:
+      - type: bind
+        source: ${FLASH_DATA_PATH:-./data}
+        target: /data
+        bind:
+          create_host_path: false
+
   flash:
     image: ${FLASH_IMAGE:?Copy .env.example to .env and set FLASH_IMAGE}
+    user: "${FLASH_UID:-100}:${FLASH_GID:-101}"
     restart: unless-stopped
+    depends_on:
+      permissions:
+        condition: service_completed_successfully
     environment:
       FLASH_BASE_URL: ${FLASH_BASE_URL:?Set FLASH_BASE_URL in .env}
       FLASH_BIND: 0.0.0.0:8437
