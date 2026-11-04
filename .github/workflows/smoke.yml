@@ -1,0 +1,75 @@
+name: Smoke test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare configuration
+        run: |
+          cp .env.example .env
+          mkdir -p data
+          docker compose config --quiet
+          docker compose pull
+
+      - name: Start stack and wait for health
+        run: docker compose up --wait --wait-timeout 120
+
+      - name: Check initialization and HTTP health
+        run: |
+          initializer=$(docker compose ps -a -q permissions)
+          test "$(docker inspect --format '{{.State.Status}}:{{.State.ExitCode}}' "$initializer")" = 'exited:0'
+          test "$(stat -c '%u:%g:%a' data)" = '100:101:750'
+          test "$(docker compose exec -T flash sh -c 'printf "%s:%s" "$(id -u)" "$(id -g)"')" = '100:101'
+          curl --fail --silent --show-error http://localhost:8437/healthz |
+            python3 -c 'import json, sys; assert json.load(sys.stdin)["db"] == "ok"'
+          docker compose exec -T flash sh -c 'printf "persistent-data\n" > /data/.smoke-marker'
+
+      - name: Check persistence across container replacement
+        run: |
+          docker compose up --no-deps --force-recreate --wait --wait-timeout 120 flash
+          test "$(docker compose exec -T flash cat /data/.smoke-marker)" = 'persistent-data'
+          curl --fail --silent --show-error http://localhost:8437/healthz |
+            python3 -c 'import json, sys; assert json.load(sys.stdin)["db"] == "ok"'
+
+      - name: Check SQLite integrity after shutdown
+        run: |
+          docker compose stop flash
+          sudo python3 - <<'PY'
+          import pathlib
+          import sqlite3
+
+          databases = []
+          for path in pathlib.Path("data").rglob("*"):
+              if path.is_file():
+                  with path.open("rb") as stream:
+                      if stream.read(16) == b"SQLite format 3\x00":
+                          databases.append(path)
+          assert databases, "No persistent SQLite database found"
+          for path in databases:
+              with sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True) as database:
+                  assert database.execute("PRAGMA integrity_check").fetchall() == [("ok",)], path
+          PY
+
+      - name: Show diagnostics on failure
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --no-color --tail=100 | sed '/enroll/Id'
+
+      - name: Clean up
+        if: always()
+        run: docker compose down --volumes --remove-orphans

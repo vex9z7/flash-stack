@@ -2,6 +2,8 @@
 
 Docker Compose deployment for [Flash](https://github.com/flash-cards/flash), using the upstream image and a local directory for persistent data.
 
+GitHub Actions runs a smoke test on pushes to `master`, pull requests, and manual runs. It checks startup, permissions, HTTP health, persistence across container replacement, and SQLite integrity.
+
 ## Setup
 
 Requires Docker Engine and Docker Compose v2. Run these commands in the project directory:
