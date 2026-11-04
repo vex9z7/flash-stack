@@ -1,0 +1,25 @@
+services:
+  flash:
+    image: ${FLASH_IMAGE:?Copy .env.example to .env and set FLASH_IMAGE}
+    restart: unless-stopped
+    environment:
+      FLASH_BASE_URL: ${FLASH_BASE_URL:?Set FLASH_BASE_URL in .env}
+      FLASH_BIND: 0.0.0.0:8437
+      FLASH_DATA_DIR: /data
+      FLASH_CLIENT_IP_HEADER: ${FLASH_CLIENT_IP_HEADER:-}
+      FLASH_PREVIOUS_BASE_URLS: ${FLASH_PREVIOUS_BASE_URLS:-}
+    ports:
+      - "${FLASH_HOST_IP:-127.0.0.1}:${FLASH_HOST_PORT:-8437}:8437"
+    volumes:
+      - type: bind
+        source: ${FLASH_DATA_PATH:-./data}
+        target: /data
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
